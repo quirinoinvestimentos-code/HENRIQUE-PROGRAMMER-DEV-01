@@ -346,33 +346,28 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore,
-    collection,
-    addDoc,
-    deleteDoc,
-    updateDoc,
-    doc,
-    query,
-    orderBy,
-    onSnapshot,
-    writeBatch,
-    getDocs,
-    where
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    getDatabase,
+    ref,
+    push,
+    onValue,
+    update,
+    remove
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   // ── Firebase config ──────────────────────────────────────────────
   const firebaseConfig = {
-    apiKey: "AIzaSyD515tn_-pXflQ3Yz7ZZcYvA2uI67rfXNo",
-    authDomain: "tarefas-rbassos.firebaseapp.com",
-    projectId: "tarefas-rbassos",
-    storageBucket: "tarefas-rbassos.firebasestorage.app",
-    messagingSenderId: "224200148485",
-    appId: "1:224200148485:web:8e16511806a1f4469b7e6c"
+    apiKey: "AIzaSyBFV8sZB3rV8rnPwPej1uyaNWCDtQQlRcI",
+    authDomain: "tarefas-rbassos-compartilhada.firebaseapp.com",
+    databaseURL: "https://tarefas-rbassos-compartilhada-default-rtdb.firebaseio.com",
+    projectId: "tarefas-rbassos-compartilhada",
+    storageBucket: "tarefas-rbassos-compartilhada.firebasestorage.app",
+    messagingSenderId: "100369053185",
+    appId: "1:100369053185:web:581fe6f15970dcc6b1b200"
   };
 
   const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  const tasksCol = collection(db, "tarefas");
+  const db  = getDatabase(app);
+  const tasksRef = ref(db, "tarefas");
 
   // ── Tema ─────────────────────────────────────────────────────────
   const html   = document.documentElement;
@@ -401,11 +396,16 @@
     if (!text) { input.focus(); return; }
     input.value = '';
     input.focus();
-    await addDoc(tasksCol, {
-      text,
-      done: false,
-      createdAt: Date.now()
-    });
+    try {
+      await push(tasksRef, {
+        text,
+        done: false,
+        createdAt: Date.now()
+      });
+    } catch (err) {
+      console.error('Erro ao salvar tarefa:', err);
+      alert('Erro ao salvar: ' + err.message);
+    }
   }
 
   addBtn.addEventListener('click', addTask);
@@ -413,29 +413,33 @@
 
   // ── Limpar concluídas ────────────────────────────────────────────
   clearBtn.addEventListener('click', async () => {
-    const q = query(tasksCol, where('done', '==', true));
-    const snap = await getDocs(q);
-    const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    try {
+      const updates = {};
+      currentTasks.forEach(t => {
+        if (t.done) updates[t.id] = null; // null remove o nó no Realtime DB
+      });
+      await update(tasksRef, updates);
+    } catch (err) {
+      console.error('Erro ao limpar concluídas:', err);
+      alert('Erro ao limpar: ' + err.message);
+    }
   });
 
   // ── Listener em tempo real ───────────────────────────────────────
-  const q = query(tasksCol, orderBy('createdAt', 'desc'));
+  let currentTasks = [];
 
-  onSnapshot(q, (snapshot) => {
-    // Online
+  onValue(tasksRef, (snapshot) => {
     statusDot.classList.add('online');
-    statusTxt.textContent = '';
 
-    const tasks = [];
-    snapshot.forEach(d => tasks.push({ id: d.id, ...d.data() }));
+    const data = snapshot.val() || {};
+    const tasks = Object.keys(data).map(id => ({ id, ...data[id] }));
+    tasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    currentTasks = tasks;
 
     const total  = tasks.length;
     const done   = tasks.filter(t => t.done).length;
     const active = total - done;
 
-    // Stats
     if (total) {
       statusTxt.textContent =
         active + ' pendente' + (active !== 1 ? 's' : '') +
@@ -446,7 +450,6 @@
 
     clearBtn.disabled = done === 0;
 
-    // Render lista
     if (!total) {
       listEl.innerHTML =
         '<div class="empty">' +
@@ -467,7 +470,7 @@
       check.setAttribute('aria-label', task.done ? 'Desmarcar' : 'Concluir');
       check.innerHTML = task.done ? '✓' : '';
       check.addEventListener('click', () => {
-        updateDoc(doc(db, 'tarefas', task.id), { done: !task.done });
+        update(ref(db, 'tarefas/' + task.id), { done: !task.done });
       });
 
       const label = document.createElement('span');
@@ -479,7 +482,7 @@
       del.setAttribute('aria-label', 'Remover tarefa');
       del.innerHTML = '×';
       del.addEventListener('click', () => {
-        deleteDoc(doc(db, 'tarefas', task.id));
+        remove(ref(db, 'tarefas/' + task.id));
       });
 
       item.appendChild(check);
@@ -489,7 +492,6 @@
     });
 
   }, (error) => {
-    // Offline / erro
     statusDot.classList.remove('online');
     statusTxt.textContent = 'Sem conexão';
     console.error(error);
