@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tarefas Diárias RBASSOS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #F7F6F3;
+      --surface:   #FFFFFF;
+      --border:    #E4E2DC;
+      --text:      #1A1916;
+      --sub:       #7A7870;
+      --accent:    #2D6A4F;
+      --accent-lt: #D8EBE3;
+      --danger:    #C0392B;
+      --done-text: #A8A6A0;
+      --shadow:    0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+      --radius:    10px;
+      --transition: 200ms ease;
+    }
+
+    [data-theme="dark"] {
+      --bg:        #131210;
+      --surface:   #1E1D1A;
+      --border:    #2E2C28;
+      --text:      #F0EFE9;
+      --sub:       #706E68;
+      --accent:    #52B788;
+      --accent-lt: #1A3528;
+      --danger:    #E07070;
+      --done-text: #4A4844;
+      --shadow:    0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+    }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 80px;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    header {
+      width: 100%;
+      max-width: 1400px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .brand { display: flex; flex-direction: column; gap: 2px; }
+
+    .brand-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--sub);
+      max-width: 480px;
+      line-height: 1.4;
+    }
+
+    h1 {
+      font-size: clamp(20px, 4vw, 30px);
+      font-weight: 600;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+    }
+
+    .toggle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      width: 52px;
+      height: 28px;
+      cursor: pointer;
+      position: relative;
+      transition: background var(--transition), border-color var(--transition);
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--sub);
+      transition: transform var(--transition), background var(--transition);
+    }
+
+    [data-theme="dark"] .toggle::after {
+      transform: translateX(24px);
+      background: var(--accent);
+    }
+
+    .toggle-icons {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+      pointer-events: none;
+      font-size: 11px;
+    }
+
+    /* ── Board / colunas ─────────────────────────────────────── */
+    .board {
+      width: 100%;
+      max-width: 1400px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+      .board { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .board { grid-template-columns: 1fr; }
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--column-color, var(--accent));
+    }
+
+    .column-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--column-color, var(--accent));
+      flex-shrink: 0;
+    }
+
+    .column-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -.01em;
+      line-height: 1.25;
+    }
+
+    .input-row {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .task-input {
+      flex: 1 1 140px;
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 13px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), background var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .task-input::placeholder { color: var(--sub); }
+    .task-input:focus { border-color: var(--column-color, var(--accent)); }
+
+    .priority-select {
+      flex: 0 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), background var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .priority-select { width: 92px; cursor: pointer; }
+
+    .priority-select:focus { border-color: var(--column-color, var(--accent)); }
+
+    .attach-btn {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font-size: 15px;
+      transition: border-color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .attach-btn:hover { border-color: var(--column-color, var(--accent)); }
+
+    .file-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--accent-lt);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin: -6px 0 14px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .file-preview span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-remove {
+      background: none;
+      border: none;
+      color: var(--sub);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0 2px;
+    }
+    .file-remove:hover { color: var(--danger); }
+
+    .add-btn {
+      background: var(--column-color, var(--accent));
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity var(--transition), transform var(--transition);
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .add-btn:active { transform: scale(.97); opacity: .88; }
+
+    .stats {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .stats-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--sub);
+    }
+
+    .clear-done {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 11px;
+      color: var(--danger);
+      cursor: pointer;
+      padding: 6px 0;
+      opacity: .7;
+      transition: opacity var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .clear-done:hover { opacity: 1; }
+    .clear-done:disabled { opacity: .3; cursor: default; }
+
+    .task-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 13px;
+      box-shadow: var(--shadow);
+      transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+      animation: slide-in 200ms ease both;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .task-item.done { opacity: .6; }
+
+    .check-btn {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color var(--transition), background var(--transition);
+      color: #fff;
+      font-size: 13px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .check-btn:active { border-color: var(--column-color, var(--accent)); }
+    .task-item.done .check-btn {
+      background: var(--column-color, var(--accent));
+      border-color: var(--column-color, var(--accent));
+    }
+
+    .task-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .task-text {
+      font-size: 13.5px;
+      line-height: 1.4;
+      transition: color var(--transition);
+      word-break: break-word;
+    }
+
+    .task-item.done .task-text {
+      color: var(--done-text);
+      text-decoration: line-through;
+      text-decoration-color: var(--done-text);
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .priority-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .02em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      line-height: 1.5;
+    }
+
+    .priority-badge.p1 { background: #FBE4E1; color: #C0392B; }
+    .priority-badge.p2 { background: #FBEED9; color: #B8860B; }
+    .priority-badge.p3 { background: #E3EFE9; color: #2D6A4F; }
+
+    [data-theme="dark"] .priority-badge.p1 { background: #3A1E1B; color: #E07070; }
+    [data-theme="dark"] .priority-badge.p2 { background: #3A2F16; color: #E0B860; }
+    [data-theme="dark"] .priority-badge.p3 { background: #17301F; color: #52B788; }
+
+    .task-item.done .priority-badge { opacity: .55; }
+
+    .anexo-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--sub);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      transition: border-color var(--transition), color var(--transition);
+    }
+    .anexo-badge:hover {
+      border-color: var(--column-color, var(--accent));
+      color: var(--text);
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: 1;
+      transition: color var(--transition);
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .del-btn:active { color: var(--danger); }
+
+    .empty {
+      width: 100%;
+      text-align: center;
+      padding: 32px 8px;
+      color: var(--sub);
+    }
+
+    .empty-icon { font-size: 26px; margin-bottom: 8px; }
+    .empty p { font-size: 12.5px; line-height: 1.5; }
+
+    .loading {
+      width: 100%;
+      text-align: center;
+      padding: 32px 0;
+      color: var(--sub);
+      font-size: 13px;
+    }
+
+    .conn-banner {
+      width: 100%;
+      max-width: 1400px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--sub);
+    }
+
+    .priority-legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10.5px;
+      color: var(--sub);
+    }
+
+    .priority-legend .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .priority-legend .legend-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .priority-legend .legend-dot.p1 { background: #C0392B; }
+    .priority-legend .legend-dot.p2 { background: #B8860B; }
+    .priority-legend .legend-dot.p3 { background: #2D6A4F; }
+
+    [data-theme="dark"] .priority-legend .legend-dot.p1 { background: #E07070; }
+    [data-theme="dark"] .priority-legend .legend-dot.p2 { background: #E0B860; }
+    [data-theme="dark"] .priority-legend .legend-dot.p3 { background: #52B788; }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--sub);
+      transition: background 0.3s;
+    }
+    .status-dot.online { background: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-label">"A mente que se abre a uma nova ideia jamais voltará ao seu tamanho original." — Albert Einstein</span>
+    <h1>Tarefas Diárias RBASSOS</h1>
+  </div>
+  <button class="toggle" id="themeToggle" title="Alternar modo escuro" aria-label="Alternar tema">
+    <span class="toggle-icons"><span>☀️</span><span>🌙</span></span>
+  </button>
+</header>
+
+<div class="conn-banner">
+  <span class="conn-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Conectando…</span>
+  </span>
+  <span class="priority-legend">
+    <span class="legend-item"><span class="legend-dot p1"></span>P1 · Alta</span>
+    <span class="legend-item"><span class="legend-dot p2"></span>P2 · Média</span>
+    <span class="legend-item"><span class="legend-dot p3"></span>P3 · Baixa</span>
+  </span>
+</div>
+
+<div class="board" id="board">
+  <div class="loading">Carregando tarefas…</div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getDatabase,
+    ref,
+    push,
+    onValue,
+    update,
+    remove
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  // ── Firebase config ──────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyBFV8sZB3rV8rnPwPej1uyaNWCDtQQlRcI",
+    authDomain: "tarefas-rbassos-compartilhada.firebaseapp.com",
+    databaseURL: "https://tarefas-rbassos-compartilhada-default-rtdb.firebaseio.com",
+    projectId: "tarefas-rbassos-compartilhada",
+    storageBucket: "tarefas-rbassos-compartilhada.firebasestorage.app",
+    messagingSenderId: "100369053185",
+    appId: "1:100369053185:web:581fe6f15970dcc6b1b200"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  const tasksRef = ref(db, "tarefas");
+
+  // ── Setores (colunas) ────────────────────────────────────────────
+  const SECTORS = [
+    { id: 'usinagem',    label: 'Centro de Usinagem / Furadeira', color: '#2D6A4F' },
+    { id: 'dobra',       label: 'Dobra / Guilhotina',              color: '#1D6FA5' },
+    { id: 'motorista',   label: 'Motorista',                       color: '#B8860B' },
+    { id: 'recebimento', label: 'Recebimento / Envios',            color: '#8E44AD' }
+  ];
+
+  // ── Tema ─────────────────────────────────────────────────────────
+  const html   = document.documentElement;
+  const toggle = document.getElementById('themeToggle');
+  const saved  = localStorage.getItem('theme_v1') || 'light';
+  html.setAttribute('data-theme', saved);
+
+  toggle.addEventListener('click', () => {
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme_v1', next);
+  });
+
+  // ── Monta o board com as 4 colunas ───────────────────────────────
+  const board = document.getElementById('board');
+  const statusDot = document.getElementById('statusDot');
+  const statusTxt = document.getElementById('statusText');
+
+  board.innerHTML = '';
+
+  SECTORS.forEach(sector => {
+    const col = document.createElement('div');
+    col.className = 'column';
+    col.style.setProperty('--column-color', sector.color);
+    col.dataset.sector = sector.id;
+
+    col.innerHTML = `
+      <div class="column-header">
+        <span class="column-dot"></span>
+        <span class="column-title">${sector.label}</span>
+      </div>
+      <div class="input-row">
+        <input class="task-input" type="text" placeholder="Nova tarefa…" maxlength="200"
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" />
+        <select class="priority-select" title="Prioridade">
+          <option value="1">P1</option>
+          <option value="2" selected>P2</option>
+          <option value="3">P3</option>
+        </select>
+        <label class="attach-btn" title="Anexar PDF ou imagem">
+          📎
+          <input class="file-input" type="file" accept="application/pdf,image/*" hidden />
+        </label>
+        <button class="add-btn">Add</button>
+      </div>
+      <div class="file-preview" hidden></div>
+      <div class="stats">
+        <span class="stats-count"></span>
+        <button class="clear-done" disabled>Limpar concluídas</button>
+      </div>
+      <div class="task-list"><div class="loading">Carregando…</div></div>
+    `;
+
+    board.appendChild(col);
+
+    const input       = col.querySelector('.task-input');
+    const prioritySel = col.querySelector('.priority-select');
+    const fileInput   = col.querySelector('.file-input');
+    const filePreview = col.querySelector('.file-preview');
+    const addBtn      = col.querySelector('.add-btn');
+    const clearBtn    = col.querySelector('.clear-done');
+
+    const MAX_FILE_MB = 1.2;
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) { filePreview.hidden = true; return; }
+
+      const isPdf   = file.type === 'application/pdf';
+      const isImage = file.type.startsWith('image/');
+
+      if (!isPdf && !isImage) {
+        alert('Só é possível anexar arquivos PDF ou imagem.');
+        fileInput.value = '';
+        filePreview.hidden = true;
+        return;
+      }
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        alert('Arquivo muito grande. Limite de ' + MAX_FILE_MB + 'MB (o banco de dados usado não comporta arquivos grandes).');
+        fileInput.value = '';
+        filePreview.hidden = true;
+        return;
+      }
+
+      filePreview.hidden = false;
+      filePreview.innerHTML =
+        '<span>' + (isPdf ? '📄' : '🖼️') + ' ' + file.name + '</span>' +
+        '<button type="button" class="file-remove" title="Remover anexo">×</button>';
+
+      filePreview.querySelector('.file-remove').addEventListener('click', () => {
+        fileInput.value = '';
+        filePreview.hidden = true;
+      });
+    });
+
+    async function addTask() {
+      const text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      const priority = parseInt(prioritySel.value, 10) || 2;
+      const file = fileInput.files[0] || null;
+
+      addBtn.disabled = true;
+      const originalLabel = addBtn.textContent;
+      if (file) addBtn.textContent = 'Anexando…';
+
+      try {
+        const payload = {
+          text,
+          done: false,
+          setor: sector.id,
+          priority,
+          createdAt: Date.now()
+        };
+
+        if (file) {
+          const dataUrl = await readFileAsDataURL(file);
+          payload.anexoData = dataUrl;
+          payload.anexoNome = file.name;
+          payload.anexoTipo = file.type === 'application/pdf' ? 'pdf' : 'imagem';
+        }
+
+        await push(tasksRef, payload);
+
+        input.value = '';
+        prioritySel.value = '2';
+        fileInput.value = '';
+        filePreview.hidden = true;
+        input.focus();
+      } catch (err) {
+        console.error('Erro ao salvar tarefa:', err);
+        alert('Erro ao salvar: ' + err.message);
+      } finally {
+        addBtn.disabled = false;
+        addBtn.textContent = originalLabel;
+      }
+    }
+
+    addBtn.addEventListener('click', addTask);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+    clearBtn.addEventListener('click', async () => {
+      try {
+        const updates = {};
+        (tasksBySector[sector.id] || []).forEach(t => {
+          if (t.done) updates[t.id] = null;
+        });
+        await update(tasksRef, updates);
+      } catch (err) {
+        console.error('Erro ao limpar concluídas:', err);
+        alert('Erro ao limpar: ' + err.message);
+      }
+    });
+  });
+
+  // ── Listener em tempo real (dados de todos os setores) ───────────
+  let tasksBySector = {};
+
+  onValue(tasksRef, (snapshot) => {
+    statusDot.classList.add('online');
+    statusTxt.textContent = 'Conectado';
+
+    const data = snapshot.val() || {};
+    const allTasks = Object.keys(data).map(id => ({ id, ...data[id] }));
+
+    // Agrupa por setor (tarefas sem setor definido caem no primeiro setor por segurança)
+    tasksBySector = {};
+    SECTORS.forEach(s => { tasksBySector[s.id] = []; });
+    allTasks.forEach(t => {
+      const key = tasksBySector[t.setor] ? t.setor : SECTORS[0].id;
+      tasksBySector[key].push(t);
+    });
+
+    SECTORS.forEach(sector => {
+      const col = board.querySelector(`.column[data-sector="${sector.id}"]`);
+      if (!col) return;
+
+      const tasks = (tasksBySector[sector.id] || [])
+        .sort((a, b) => {
+          const pa = a.priority || 2;
+          const pb = b.priority || 2;
+          if (pa !== pb) return pa - pb;
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        });
+
+      const listEl   = col.querySelector('.task-list');
+      const statsEl  = col.querySelector('.stats-count');
+      const clearBtn = col.querySelector('.clear-done');
+
+      const total  = tasks.length;
+      const done   = tasks.filter(t => t.done).length;
+      const active = total - done;
+
+      statsEl.textContent = total
+        ? active + ' pendente' + (active !== 1 ? 's' : '') + ' · ' + done + ' concluída' + (done !== 1 ? 's' : '')
+        : 'Nenhuma tarefa';
+
+      clearBtn.disabled = done === 0;
+
+      if (!total) {
+        listEl.innerHTML =
+          '<div class="empty">' +
+            '<div class="empty-icon">✦</div>' +
+            '<p>Nenhuma tarefa ainda.</p>' +
+          '</div>';
+        return;
+      }
+
+      listEl.innerHTML = '';
+
+      tasks.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'task-item' + (task.done ? ' done' : '');
+
+        const check = document.createElement('button');
+        check.className = 'check-btn';
+        check.setAttribute('aria-label', task.done ? 'Desmarcar' : 'Concluir');
+        check.innerHTML = task.done ? '✓' : '';
+        check.addEventListener('click', () => {
+          update(ref(db, 'tarefas/' + task.id), { done: !task.done });
+        });
+
+        const body = document.createElement('div');
+        body.className = 'task-body';
+
+        const label = document.createElement('span');
+        label.className = 'task-text';
+        label.textContent = task.text;
+        body.appendChild(label);
+
+        const priority = task.priority || 2;
+        const meta = document.createElement('div');
+        meta.className = 'task-meta';
+
+        const badge = document.createElement('span');
+        badge.className = 'priority-badge p' + priority;
+        badge.textContent = 'P' + priority;
+        meta.appendChild(badge);
+
+        if (task.anexoData) {
+          const anexo = document.createElement('a');
+          anexo.className = 'anexo-badge';
+          anexo.href = task.anexoData;
+          anexo.download = task.anexoNome || 'anexo';
+          anexo.target = '_blank';
+          anexo.rel = 'noopener noreferrer';
+          anexo.title = task.anexoNome || 'Anexo';
+          anexo.innerHTML = (task.anexoTipo === 'pdf' ? '📄' : '🖼️') + ' Anexo';
+          meta.appendChild(anexo);
+        }
+
+        body.appendChild(meta);
+
+        const del = document.createElement('button');
+        del.className = 'del-btn';
+        del.setAttribute('aria-label', 'Remover tarefa');
+        del.innerHTML = '×';
+        del.addEventListener('click', () => {
+          remove(ref(db, 'tarefas/' + task.id));
+        });
+
+        item.appendChild(check);
+        item.appendChild(body);
+        item.appendChild(del);
+        listEl.appendChild(item);
+      });
+    });
+
+  }, (error) => {
+    statusDot.classList.remove('online');
+    statusTxt.textContent = 'Sem conexão';
+    console.error(error);
+  });
+</script>
+</body>
+</html>
