@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tarefas Diárias RBASSOS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+
+    :root {
+      --bg:        #F7F6F3;
+      --surface:   #FFFFFF;
+      --border:    #E4E2DC;
+      --text:      #1A1916;
+      --sub:       #7A7870;
+      --accent:    #2D6A4F;
+      --accent-lt: #D8EBE3;
+      --danger:    #C0392B;
+      --done-text: #A8A6A0;
+      --shadow:    0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+      --radius:    10px;
+      --transition: 200ms ease;
+    }
+
+    [data-theme="dark"] {
+      --bg:        #131210;
+      --surface:   #1E1D1A;
+      --border:    #2E2C28;
+      --text:      #F0EFE9;
+      --sub:       #706E68;
+      --accent:    #52B788;
+      --accent-lt: #1A3528;
+      --danger:    #E07070;
+      --done-text: #4A4844;
+      --shadow:    0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+    }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 80px;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    header {
+      width: 100%;
+      max-width: 1400px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .brand { display: flex; flex-direction: column; gap: 2px; }
+
+    .brand-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--sub);
+      max-width: 480px;
+      line-height: 1.4;
+    }
+
+    h1 {
+      font-size: clamp(20px, 4vw, 30px);
+      font-weight: 600;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+    }
+
+    .toggle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      width: 52px;
+      height: 28px;
+      cursor: pointer;
+      position: relative;
+      transition: background var(--transition), border-color var(--transition);
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--sub);
+      transition: transform var(--transition), background var(--transition);
+    }
+
+    [data-theme="dark"] .toggle::after {
+      transform: translateX(24px);
+      background: var(--accent);
+    }
+
+    .toggle-icons {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+      pointer-events: none;
+      font-size: 11px;
+    }
+
+    /* ── Board / colunas ─────────────────────────────────────── */
+    .board {
+      width: 100%;
+      max-width: 1400px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+      .board { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .board { grid-template-columns: 1fr; }
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--column-color, var(--accent));
+    }
+
+    .column-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--column-color, var(--accent));
+      flex-shrink: 0;
+    }
+
+    .column-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -.01em;
+      line-height: 1.25;
+    }
+
+    .input-row {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .task-input {
+      flex: 1 1 140px;
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 13px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), background var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .task-input::placeholder { color: var(--sub); }
+    .task-input:focus { border-color: var(--column-color, var(--accent)); }
+
+    .priority-select {
+      flex: 0 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), background var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .priority-select { width: 92px; cursor: pointer; }
+
+    .priority-select:focus { border-color: var(--column-color, var(--accent)); }
+
+    .attach-btn {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font-size: 15px;
+      transition: border-color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .attach-btn:hover { border-color: var(--column-color, var(--accent)); }
+
+    .file-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--accent-lt);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin: -6px 0 14px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .file-preview span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-remove {
+      background: none;
+      border: none;
+      color: var(--sub);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0 2px;
+    }
+    .file-remove:hover { color: var(--danger); }
+
+    .add-btn {
+      background: var(--column-color, var(--accent));
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity var(--transition), transform var(--transition);
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .add-btn:active { transform: scale(.97); opacity: .88; }
+
+    .stats {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .stats-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--sub);
+    }
+
+    .clear-done {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 11px;
+      color: var(--danger);
+      cursor: pointer;
+      padding: 6px 0;
+      opacity: .7;
+      transition: opacity var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .clear-done:hover { opacity: 1; }
+    .clear-done:disabled { opacity: .3; cursor: default; }
+
+    .task-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 13px;
+      box-shadow: var(--shadow);
+      transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+      animation: slide-in 200ms ease both;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .task-item.done { opacity: .6; }
+
+    .check-btn {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color var(--transition), background var(--transition);
+      color: #fff;
+      font-size: 13px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .check-btn:active { border-color: var(--column-color, var(--accent)); }
+    .task-item.done .check-btn {
+      background: var(--column-color, var(--accent));
+      border-color: var(--column-color, var(--accent));
+    }
+
+    .task-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .task-text {
+      font-size: 13.5px;
+      line-height: 1.4;
+      transition: color var(--transition);
+      word-break: break-word;
+    }
+
+    .task-item.done .task-text {
+      color: var(--done-text);
+      text-decoration: line-through;
+      text-decoration-color: var(--done-text);
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .priority-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .02em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      line-height: 1.5;
+    }
+
+    .priority-badge.p1 { background: #FBE4E1; color: #C0392B; }
+    .priority-badge.p2 { background: #FBEED9; color: #B8860B; }
+    .priority-badge.p3 { background: #E3EFE9; color: #2D6A4F; }
+
+    [data-theme="dark"] .priority-badge.p1 { background: #3A1E1B; color: #E07070; }
+    [data-theme="dark"] .priority-badge.p2 { background: #3A2F16; color: #E0B860; }
+    [data-theme="dark"] .priority-badge.p3 { background: #17301F; color: #52B788; }
+
+    .task-item.done .priority-badge { opacity: .55; }
+
+    .column-hidden { display: none !important; }
+
+    .maintenance-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-size: 21px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      transition: background var(--transition), border-color var(--transition), transform var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .maintenance-fab:active { transform: scale(.94); }
+    .maintenance-fab.active {
+      background: #D35400;
+      border-color: #D35400;
+    }
+
+    .fab-secondary {
+      bottom: 88px;
+    }
+    .fab-secondary.active {
+      background: #2C3E50;
+      border-color: #2C3E50;
+    }
+
+    .fab-auth {
+      bottom: 152px;
+    }
+    .fab-auth.active {
+      background: #16A34A;
+      border-color: #16A34A;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-box {
+      width: min(320px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-title { font-size: 17px; font-weight: 600; }
+    .modal-sub { font-size: 12.5px; color: var(--sub); line-height: 1.4; margin-bottom: 4px; }
+
+    .modal-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+    }
+    .modal-input:focus { border-color: var(--accent); }
+
+    .modal-error {
+      font-size: 12px;
+      color: var(--danger);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .modal-cancel, .modal-submit {
+      font-family: inherit;
+      font-size: 13.5px;
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border: none;
+    }
+    .modal-cancel {
+      background: transparent;
+      color: var(--sub);
+      border: 1px solid var(--border);
+    }
+    .modal-submit {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .subtask-wrap {
+      margin-top: 4px;
+    }
+
+    .subtask-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--sub);
+      margin-bottom: 6px;
+    }
+
+    .subtask-progress-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .subtask-progress-fill {
+      height: 100%;
+      background: var(--column-color, var(--accent));
+      transition: width 200ms ease;
+    }
+
+    .subtask-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subtask-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #fff;
+      transition: border-color var(--transition), background var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .subtask-item.done .subtask-check {
+      background: var(--column-color, var(--accent));
+      border-color: var(--column-color, var(--accent));
+    }
+
+    .subtask-text {
+      flex: 1;
+      font-size: 12.5px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .subtask-item.done .subtask-text {
+      color: var(--done-text);
+      text-decoration: line-through;
+      text-decoration-color: var(--done-text);
+    }
+
+    .subtask-del {
+      background: none;
+      border: none;
+      color: var(--sub);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 2px;
+      flex-shrink: 0;
+    }
+    .subtask-del:disabled { opacity: .2; pointer-events: none; }
+
+    .subtask-add-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .subtask-add-input {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 9px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .subtask-add-input:focus { border-color: var(--column-color, var(--accent)); }
+
+    .subtask-add-btn {
+      background: none;
+      border: none;
+      color: var(--sub);
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 4px;
+      flex-shrink: 0;
+      transition: color var(--transition);
+    }
+    .subtask-add-btn:hover { color: var(--column-color, var(--accent)); }
+
+    .comment-wrap {
+      margin-top: 2px;
+    }
+
+    .comment-add {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 11.5px;
+      color: var(--sub);
+      cursor: pointer;
+      padding: 2px 0;
+      opacity: .8;
+      transition: opacity var(--transition);
+    }
+    .comment-add:hover { opacity: 1; }
+
+    .comment-display {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin-top: 2px;
+    }
+
+    .comment-icon { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+
+    .comment-text {
+      flex: 1;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--sub);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .comment-edit {
+      background: none;
+      border: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 12px;
+      flex-shrink: 0;
+      padding: 0 2px;
+      transition: color var(--transition);
+    }
+    .comment-edit:hover { color: var(--text); }
+
+    .comment-editor {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .comment-input {
+      width: 100%;
+      resize: vertical;
+      min-height: 46px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 9px;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--text);
+      outline: none;
+    }
+    .comment-input:focus { border-color: var(--column-color, var(--accent)); }
+
+    .comment-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .comment-save,
+    .comment-cancel {
+      font-family: inherit;
+      font-size: 11.5px;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .comment-save {
+      background: var(--column-color, var(--accent));
+      color: #fff;
+    }
+    .comment-cancel {
+      background: transparent;
+      color: var(--sub);
+      border: 1px solid var(--border);
+    }
+    .anexo-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--sub);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      transition: border-color var(--transition), color var(--transition);
+    }
+    .anexo-badge:hover {
+      border-color: var(--column-color, var(--accent));
+      color: var(--text);
+    }
+
+    .task-input:disabled,
+    .priority-select:disabled,
+    .add-btn:disabled {
+      opacity: .45;
+    }
+
+    body[data-auth="locked"] .attach-btn {
+      opacity: .4;
+      pointer-events: none;
+    }
+
+    .del-btn:disabled {
+      opacity: .2;
+      pointer-events: none;
+    }
+
+    .date-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--sub);
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: 1;
+      transition: color var(--transition);
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .del-btn:active { color: var(--danger); }
+
+    .empty {
+      width: 100%;
+      text-align: center;
+      padding: 32px 8px;
+      color: var(--sub);
+    }
+
+    .empty-icon { font-size: 26px; margin-bottom: 8px; }
+    .empty p { font-size: 12.5px; line-height: 1.5; }
+
+    .loading {
+      width: 100%;
+      text-align: center;
+      padding: 32px 0;
+      color: var(--sub);
+      font-size: 13px;
+    }
+
+    .conn-banner {
+      width: 100%;
+      max-width: 1400px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--sub);
+    }
+
+    .priority-legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10.5px;
+      color: var(--sub);
+    }
+
+    .priority-legend .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .priority-legend .legend-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .priority-legend .legend-dot.p1 { background: #C0392B; }
+    .priority-legend .legend-dot.p2 { background: #B8860B; }
+    .priority-legend .legend-dot.p3 { background: #2D6A4F; }
+
+    [data-theme="dark"] .priority-legend .legend-dot.p1 { background: #E07070; }
+    [data-theme="dark"] .priority-legend .legend-dot.p2 { background: #E0B860; }
+    [data-theme="dark"] .priority-legend .legend-dot.p3 { background: #52B788; }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--sub);
+      transition: background 0.3s;
+    }
+    .status-dot.online { background: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-label">"A mente que se abre a uma nova ideia jamais voltará ao seu tamanho original." — Albert Einstein</span>
+    <h1>RBASSOS</h1>
+  </div>
+  <button class="toggle" id="themeToggle" title="Alternar modo escuro" aria-label="Alternar tema">
+    <span class="toggle-icons"><span>☀️</span><span>🌙</span></span>
+  </button>
+</header>
+
+<div class="conn-banner">
+  <span class="conn-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Conectando…</span>
+  </span>
+  <span class="priority-legend">
+    <span class="legend-item"><span class="legend-dot p1"></span>P1 · Alta</span>
+    <span class="legend-item"><span class="legend-dot p2"></span>P2 · Média</span>
+    <span class="legend-item"><span class="legend-dot p3"></span>P3 · Baixa</span>
+  </span>
+</div>
+
+<div class="board" id="board">
+  <div class="loading">Carregando tarefas…</div>
+</div>
+
+<button class="maintenance-fab" id="maintenanceFab" title="Mostrar/ocultar Manutenção" aria-label="Mostrar ou ocultar coluna de Manutenção">🔧</button>
+<button class="maintenance-fab fab-secondary" id="productionOrderFab" title="Mostrar/ocultar Ordem de Produção" aria-label="Mostrar ou ocultar coluna de Ordem de Produção">📋</button>
+<button class="maintenance-fab fab-auth" id="authFab" title="Login administrativo" aria-label="Login administrativo">🔑</button>
+
+<div class="modal-overlay" id="loginModalOverlay" hidden>
+  <div class="modal-box">
+    <h2 class="modal-title">Login administrativo</h2>
+    <p class="modal-sub">Sistema de gestão de processo de produção</p>
+    <input type="text" id="loginUser" class="modal-input" placeholder="Usuário" autocomplete="username" />
+    <input type="password" id="loginPass" class="modal-input" placeholder="Senha" autocomplete="current-password" />
+    <div class="modal-error" id="loginError" hidden>Usuário ou senha incorretos.</div>
+    <div class="modal-actions">
+      <button type="button" class="modal-cancel" id="loginCancelBtn">Cancelar</button>
+      <button type="button" class="modal-submit" id="loginSubmitBtn">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getDatabase,
+    ref,
+    push,
+    onValue,
+    update,
+    remove
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  // ── Firebase config ──────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyBFV8sZB3rV8rnPwPej1uyaNWCDtQQlRcI",
+    authDomain: "tarefas-rbassos-compartilhada.firebaseapp.com",
+    databaseURL: "https://tarefas-rbassos-compartilhada-default-rtdb.firebaseio.com",
+    projectId: "tarefas-rbassos-compartilhada",
+    storageBucket: "tarefas-rbassos-compartilhada.firebasestorage.app",
+    messagingSenderId: "100369053185",
+    appId: "1:100369053185:web:581fe6f15970dcc6b1b200"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  const tasksRef = ref(db, "tarefas");
+
+  // ── Setores (colunas) ────────────────────────────────────────────
+  const SECTORS = [
+    { id: 'usinagem',      label: 'Centro de Usinagem',              color: '#2D6A4F' },
+    { id: 'dobra',         label: 'Dobra / Guilhotina',              color: '#1D6FA5' },
+    { id: 'motorista',     label: 'Logística',                      color: '#B8860B' },
+    { id: 'recebimento',   label: 'Recebimento / Expedição',        color: '#8E44AD' },
+    { id: 'manutencao',    label: 'Manutenção',                      color: '#D35400', hidden: true },
+    { id: 'ordemproducao', label: 'Ordem de Produção',               color: '#2C3E50', hidden: true }
+  ];
+
+  // ── Tema ─────────────────────────────────────────────────────────
+  const html   = document.documentElement;
+  const toggle = document.getElementById('themeToggle');
+  const saved  = localStorage.getItem('theme_v1') || 'light';
+  html.setAttribute('data-theme', saved);
+
+  toggle.addEventListener('click', () => {
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme_v1', next);
+  });
+
+  // ── Botão flutuante: mostrar/ocultar coluna de Manutenção ────────
+  const maintenanceFab = document.getElementById('maintenanceFab');
+  maintenanceFab.addEventListener('click', () => {
+    const col = document.querySelector('.column[data-sector="manutencao"]');
+    if (!col) return;
+    const nowHidden = col.classList.toggle('column-hidden');
+    maintenanceFab.classList.toggle('active', !nowHidden);
+  });
+
+  // ── Botão flutuante: mostrar/ocultar coluna de Ordem de Produção ─
+  const productionOrderFab = document.getElementById('productionOrderFab');
+  productionOrderFab.addEventListener('click', () => {
+    const col = document.querySelector('.column[data-sector="ordemproducao"]');
+    if (!col) return;
+    const nowHidden = col.classList.toggle('column-hidden');
+    productionOrderFab.classList.toggle('active', !nowHidden);
+  });
+
+  // ── Login administrativo (controla quem pode add/anexar/excluir) ─
+  const AUTH_USER = 'RBASSOS';
+  const AUTH_PASS = 'Prod2026';
+  let isAuthenticated = false;
+
+  const authFab         = document.getElementById('authFab');
+  const loginOverlay    = document.getElementById('loginModalOverlay');
+  const loginUserInput  = document.getElementById('loginUser');
+  const loginPassInput  = document.getElementById('loginPass');
+  const loginError      = document.getElementById('loginError');
+  const loginSubmitBtn  = document.getElementById('loginSubmitBtn');
+  const loginCancelBtn  = document.getElementById('loginCancelBtn');
+
+  function openLoginModal() {
+    loginError.hidden = true;
+    loginUserInput.value = '';
+    loginPassInput.value = '';
+    loginOverlay.hidden = false;
+    loginUserInput.focus();
+  }
+
+  function closeLoginModal() {
+    loginOverlay.hidden = true;
+  }
+
+  function applyInputLockUI(value) {
+    document.body.dataset.auth = value ? 'unlocked' : 'locked';
+    document.querySelectorAll('.column').forEach(col => {
+      const ti = col.querySelector('.task-input');
+      const ps = col.querySelector('.priority-select');
+      const fi = col.querySelector('.file-input');
+      const ab = col.querySelector('.add-btn');
+      if (ti) { ti.disabled = !value; }
+      if (ps) ps.disabled = !value;
+      if (fi) fi.disabled = !value;
+      if (ab) ab.disabled = !value;
+    });
+  }
+
+  function setAuthenticated(value) {
+    isAuthenticated = value;
+    applyInputLockUI(value);
+    authFab.classList.toggle('active', value);
+    authFab.title = value ? 'Logado — clique para sair' : 'Login administrativo';
+    if (typeof SECTORS !== 'undefined') {
+      SECTORS.forEach(sector => renderColumn(sector));
+    }
+  }
+
+  function attemptLogin() {
+    const user = loginUserInput.value.trim();
+    const pass = loginPassInput.value;
+    if (user === AUTH_USER && pass === AUTH_PASS) {
+      setAuthenticated(true);
+      closeLoginModal();
+    } else {
+      loginError.hidden = false;
+    }
+  }
+
+  authFab.addEventListener('click', () => {
+    if (isAuthenticated) {
+      setAuthenticated(false);
+    } else {
+      openLoginModal();
+    }
+  });
+
+  loginCancelBtn.addEventListener('click', closeLoginModal);
+  loginSubmitBtn.addEventListener('click', attemptLogin);
+  loginOverlay.addEventListener('click', (e) => { if (e.target === loginOverlay) closeLoginModal(); });
+  loginPassInput.addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+  loginUserInput.addEventListener('keydown', e => { if (e.key === 'Enter') loginPassInput.focus(); });
+
+  // ── Monta o board com as 4 colunas ───────────────────────────────
+  const board = document.getElementById('board');
+  const statusDot = document.getElementById('statusDot');
+  const statusTxt = document.getElementById('statusText');
+
+  board.innerHTML = '';
+
+  SECTORS.forEach(sector => {
+    const col = document.createElement('div');
+    col.className = 'column' + (sector.hidden ? ' column-hidden' : '');
+    col.style.setProperty('--column-color', sector.color);
+    col.dataset.sector = sector.id;
+
+    col.innerHTML = `
+      <div class="column-header">
+        <span class="column-dot"></span>
+        <span class="column-title">${sector.label}</span>
+      </div>
+      <div class="input-row">
+        <input class="task-input" type="text" placeholder="Nova tarefa…" maxlength="200"
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" />
+        <select class="priority-select" title="Prioridade">
+          <option value="1">P1</option>
+          <option value="2" selected>P2</option>
+          <option value="3">P3</option>
+        </select>
+        <label class="attach-btn" title="Anexar PDF ou imagem">
+          📎
+          <input class="file-input" type="file" accept="application/pdf,image/*" hidden />
+        </label>
+        <button class="add-btn">Add</button>
+      </div>
+      <div class="file-preview" hidden></div>
+      <div class="stats">
+        <span class="stats-count"></span>
+        <button class="clear-done" disabled>Limpar concluídas</button>
+      </div>
+      <div class="task-list"><div class="loading">Carregando…</div></div>
+    `;
+
+    board.appendChild(col);
+
+    const input       = col.querySelector('.task-input');
+    const prioritySel = col.querySelector('.priority-select');
+    const fileInput   = col.querySelector('.file-input');
+    const filePreview = col.querySelector('.file-preview');
+    const addBtn      = col.querySelector('.add-btn');
+    const clearBtn    = col.querySelector('.clear-done');
+
+    const MAX_FILE_MB = 1.2;
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) { filePreview.hidden = true; return; }
+
+      const isPdf   = file.type === 'application/pdf';
+      const isImage = file.type.startsWith('image/');
+
+      if (!isPdf && !isImage) {
+        alert('Só é possível anexar arquivos PDF ou imagem.');
+        fileInput.value = '';
+        filePreview.hidden = true;
+        return;
+      }
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        alert('Arquivo muito grande. Limite de ' + MAX_FILE_MB + 'MB (o banco de dados usado não comporta arquivos grandes).');
+        fileInput.value = '';
+        filePreview.hidden = true;
+        return;
+      }
+
+      filePreview.hidden = false;
+      filePreview.innerHTML =
+        '<span>' + (isPdf ? '📄' : '🖼️') + ' ' + file.name + '</span>' +
+        '<button type="button" class="file-remove" title="Remover anexo">×</button>';
+
+      filePreview.querySelector('.file-remove').addEventListener('click', () => {
+        fileInput.value = '';
+        filePreview.hidden = true;
+      });
+    });
+
+    async function addTask() {
+      if (!isAuthenticated) return;
+      const text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      const priority = parseInt(prioritySel.value, 10) || 2;
+      const file = fileInput.files[0] || null;
+
+      addBtn.disabled = true;
+      const originalLabel = addBtn.textContent;
+      if (file) addBtn.textContent = 'Anexando…';
+
+      try {
+        const payload = {
+          text,
+          done: false,
+          setor: sector.id,
+          priority,
+          createdAt: Date.now()
+        };
+
+        if (file) {
+          const dataUrl = await readFileAsDataURL(file);
+          payload.anexoData = dataUrl;
+          payload.anexoNome = file.name;
+          payload.anexoTipo = file.type === 'application/pdf' ? 'pdf' : 'imagem';
+        }
+
+        await push(tasksRef, payload);
+
+        input.value = '';
+        prioritySel.value = '2';
+        fileInput.value = '';
+        filePreview.hidden = true;
+        input.focus();
+      } catch (err) {
+        console.error('Erro ao salvar tarefa:', err);
+        alert('Erro ao salvar: ' + err.message);
+      } finally {
+        addBtn.disabled = !isAuthenticated;
+        addBtn.textContent = originalLabel;
+      }
+    }
+
+    addBtn.addEventListener('click', addTask);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+    clearBtn.addEventListener('click', async () => {
+      if (!isAuthenticated) return;
+      try {
+        const updates = {};
+        (tasksBySector[sector.id] || []).forEach(t => {
+          if (t.done) updates[t.id] = null;
+        });
+        await update(tasksRef, updates);
+      } catch (err) {
+        console.error('Erro ao limpar concluídas:', err);
+        alert('Erro ao limpar: ' + err.message);
+      }
+    });
+  });
+
+  applyInputLockUI(false);
+
+  // ── Listener em tempo real (dados de todos os setores) ───────────
+  let tasksBySector = {};
+  const openCommentEditors = new Set();
+  const subtaskDrafts = {};
+  const commentDrafts = {};
+
+  function formatDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return dd + '/' + mm + '/' + yyyy;
+  }
+
+  function renderColumn(sector) {
+    const col = board.querySelector(`.column[data-sector="${sector.id}"]`);
+    if (!col) return;
+
+    const tasks = (tasksBySector[sector.id] || [])
+      .sort((a, b) => {
+        const pa = a.priority || 2;
+        const pb = b.priority || 2;
+        if (pa !== pb) return pa - pb;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+
+    const listEl   = col.querySelector('.task-list');
+    const statsEl  = col.querySelector('.stats-count');
+    const clearBtn = col.querySelector('.clear-done');
+
+    const total  = tasks.length;
+    const done   = tasks.filter(t => t.done).length;
+    const active = total - done;
+
+    statsEl.textContent = total
+      ? active + ' pendente' + (active !== 1 ? 's' : '') + ' · ' + done + ' concluída' + (done !== 1 ? 's' : '')
+      : 'Nenhuma tarefa';
+
+    clearBtn.disabled = done === 0 || !isAuthenticated;
+
+    if (!total) {
+      listEl.innerHTML =
+        '<div class="empty">' +
+          '<div class="empty-icon">✦</div>' +
+          '<p>Nenhuma tarefa ainda.</p>' +
+        '</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+
+    tasks.forEach(task => {
+      const item = document.createElement('div');
+      item.className = 'task-item' + (task.done ? ' done' : '');
+
+      const check = document.createElement('button');
+      check.className = 'check-btn';
+      check.setAttribute('aria-label', task.done ? 'Desmarcar' : 'Concluir');
+      check.innerHTML = task.done ? '✓' : '';
+      check.addEventListener('click', () => {
+        const willBeDone = !task.done;
+        update(ref(db, 'tarefas/' + task.id), {
+          done: willBeDone,
+          completedAt: willBeDone ? Date.now() : null
+        });
+      });
+
+      const body = document.createElement('div');
+      body.className = 'task-body';
+
+      const label = document.createElement('span');
+      label.className = 'task-text';
+      label.textContent = task.text;
+      body.appendChild(label);
+
+      const priority = task.priority || 2;
+      const meta = document.createElement('div');
+      meta.className = 'task-meta';
+
+      const badge = document.createElement('span');
+      badge.className = 'priority-badge p' + priority;
+      badge.textContent = 'P' + priority;
+      meta.appendChild(badge);
+
+      if (task.anexoData) {
+        const anexo = document.createElement('a');
+        anexo.className = 'anexo-badge';
+        anexo.href = task.anexoData;
+        anexo.download = task.anexoNome || 'anexo';
+        anexo.target = '_blank';
+        anexo.rel = 'noopener noreferrer';
+        anexo.title = task.anexoNome || 'Anexo';
+        anexo.innerHTML = (task.anexoTipo === 'pdf' ? '📄' : '🖼️') + ' Anexo';
+        meta.appendChild(anexo);
+      }
+
+      const dateBadge = document.createElement('span');
+      dateBadge.className = 'date-badge';
+      dateBadge.textContent = task.completedAt
+        ? formatDate(task.createdAt) + ' - ' + formatDate(task.completedAt)
+        : formatDate(task.createdAt);
+      meta.appendChild(dateBadge);
+
+      body.appendChild(meta);
+
+      // ── Subtarefas ──────────────────────────────────────────────
+      const subtasksObj  = task.subtasks || {};
+      const subtaskList  = Object.keys(subtasksObj)
+        .map(id => ({ id, ...subtasksObj[id] }))
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+      if (subtaskList.length > 0 || isAuthenticated) {
+        const subtaskWrap = document.createElement('div');
+        subtaskWrap.className = 'subtask-wrap';
+
+        if (subtaskList.length > 0) {
+          const subDone = subtaskList.filter(s => s.done).length;
+          const subTotal = subtaskList.length;
+
+          const header = document.createElement('div');
+          header.className = 'subtask-header';
+          const headerLabel = document.createElement('span');
+          headerLabel.textContent = 'Subtarefas';
+          const headerCount = document.createElement('span');
+          headerCount.textContent = subDone + '/' + subTotal;
+          header.appendChild(headerLabel);
+          header.appendChild(headerCount);
+          subtaskWrap.appendChild(header);
+
+          const track = document.createElement('div');
+          track.className = 'subtask-progress-track';
+          const fill = document.createElement('div');
+          fill.className = 'subtask-progress-fill';
+          fill.style.width = Math.round((subDone / subTotal) * 100) + '%';
+          track.appendChild(fill);
+          subtaskWrap.appendChild(track);
+
+          const list = document.createElement('div');
+          list.className = 'subtask-list';
+
+          subtaskList.forEach(sub => {
+            const subItem = document.createElement('div');
+            subItem.className = 'subtask-item' + (sub.done ? ' done' : '');
+
+            const subCheck = document.createElement('button');
+            subCheck.type = 'button';
+            subCheck.className = 'subtask-check';
+            subCheck.setAttribute('aria-label', sub.done ? 'Desmarcar subtarefa' : 'Concluir subtarefa');
+            subCheck.innerHTML = sub.done ? '✓' : '';
+            subCheck.addEventListener('click', () => {
+              update(ref(db, 'tarefas/' + task.id + '/subtasks/' + sub.id), { done: !sub.done });
+            });
+
+            const subText = document.createElement('span');
+            subText.className = 'subtask-text';
+            subText.textContent = sub.text;
+
+            const subDel = document.createElement('button');
+            subDel.type = 'button';
+            subDel.className = 'subtask-del';
+            subDel.innerHTML = '×';
+            subDel.setAttribute('aria-label', 'Remover subtarefa');
+            subDel.disabled = !isAuthenticated;
+            subDel.addEventListener('click', () => {
+              if (!isAuthenticated) return;
+              remove(ref(db, 'tarefas/' + task.id + '/subtasks/' + sub.id));
+            });
+
+            subItem.appendChild(subCheck);
+            subItem.appendChild(subText);
+            subItem.appendChild(subDel);
+            list.appendChild(subItem);
+          });
+
+          subtaskWrap.appendChild(list);
+        }
+
+        if (isAuthenticated) {
+          const addRow = document.createElement('div');
+          addRow.className = 'subtask-add-row';
+
+          const addInput = document.createElement('input');
+          addInput.className = 'subtask-add-input';
+          addInput.type = 'text';
+          addInput.placeholder = 'Nova subtarefa…';
+          addInput.maxLength = 150;
+          addInput.value = subtaskDrafts[task.id] || '';
+          addInput.addEventListener('input', () => {
+            subtaskDrafts[task.id] = addInput.value;
+          });
+
+          const submitSubtask = () => {
+            const val = addInput.value.trim();
+            if (!val) return;
+            push(ref(db, 'tarefas/' + task.id + '/subtasks'), {
+              text: val,
+              done: false,
+              createdAt: Date.now()
+            }).then(() => {
+              delete subtaskDrafts[task.id];
+            }).catch(err => {
+              console.error('Erro ao adicionar subtarefa:', err);
+              alert('Erro ao adicionar subtarefa: ' + err.message);
+            });
+          };
+
+          addInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitSubtask(); });
+
+          const addBtnSub = document.createElement('button');
+          addBtnSub.type = 'button';
+          addBtnSub.className = 'subtask-add-btn';
+          addBtnSub.innerHTML = '+';
+          addBtnSub.setAttribute('aria-label', 'Adicionar subtarefa');
+          addBtnSub.addEventListener('click', submitSubtask);
+
+          addRow.appendChild(addInput);
+          addRow.appendChild(addBtnSub);
+          subtaskWrap.appendChild(addRow);
+        }
+
+        body.appendChild(subtaskWrap);
+      }
+
+      // ── Comentário ──────────────────────────────────────────────
+      const commentWrap = document.createElement('div');
+      commentWrap.className = 'comment-wrap';
+      const isEditing = openCommentEditors.has(task.id);
+
+      if (isEditing) {
+        const editor = document.createElement('div');
+        editor.className = 'comment-editor';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'comment-input';
+        textarea.placeholder = 'Escreva um comentário…';
+        textarea.value = commentDrafts[task.id] !== undefined
+          ? commentDrafts[task.id]
+          : (task.comentario || '');
+        textarea.addEventListener('input', () => {
+          commentDrafts[task.id] = textarea.value;
+        });
+
+        const actions = document.createElement('div');
+        actions.className = 'comment-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'comment-save';
+        saveBtn.textContent = 'Salvar';
+        saveBtn.addEventListener('click', async () => {
+          const val = textarea.value.trim();
+          saveBtn.disabled = true;
+          try {
+            await update(ref(db, 'tarefas/' + task.id), { comentario: val || null });
+            openCommentEditors.delete(task.id);
+            delete commentDrafts[task.id];
+            renderColumn(sector);
+          } catch (err) {
+            console.error('Erro ao salvar comentário:', err);
+            alert('Erro ao salvar comentário: ' + err.message);
+            saveBtn.disabled = false;
+          }
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'comment-cancel';
+        cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', () => {
+          openCommentEditors.delete(task.id);
+          delete commentDrafts[task.id];
+          renderColumn(sector);
+        });
+
+        actions.appendChild(saveBtn);
+        actions.appendChild(cancelBtn);
+        editor.appendChild(textarea);
+        editor.appendChild(actions);
+        commentWrap.appendChild(editor);
+      } else if (task.comentario) {
+        const display = document.createElement('div');
+        display.className = 'comment-display';
+
+        const icon = document.createElement('span');
+        icon.className = 'comment-icon';
+        icon.textContent = '💬';
+
+        const text = document.createElement('span');
+        text.className = 'comment-text';
+        text.textContent = task.comentario;
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'comment-edit';
+        editBtn.title = 'Editar comentário';
+        editBtn.textContent = '✎';
+        editBtn.addEventListener('click', () => {
+          openCommentEditors.add(task.id);
+          renderColumn(sector);
+        });
+
+        display.appendChild(icon);
+        display.appendChild(text);
+        display.appendChild(editBtn);
+        commentWrap.appendChild(display);
+      } else {
+        const addBtn2 = document.createElement('button');
+        addBtn2.type = 'button';
+        addBtn2.className = 'comment-add';
+        addBtn2.textContent = '💬 Adicionar comentário';
+        addBtn2.addEventListener('click', () => {
+          openCommentEditors.add(task.id);
+          renderColumn(sector);
+        });
+        commentWrap.appendChild(addBtn2);
+      }
+
+      body.appendChild(commentWrap);
+
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.setAttribute('aria-label', 'Remover tarefa');
+      del.innerHTML = '×';
+      del.disabled = !isAuthenticated;
+      del.title = 'Remover tarefa';
+      del.addEventListener('click', () => {
+        if (!isAuthenticated) return;
+        remove(ref(db, 'tarefas/' + task.id));
+      });
+
+      item.appendChild(check);
+      item.appendChild(body);
+      item.appendChild(del);
+      listEl.appendChild(item);
+    });
+  }
+
+  onValue(tasksRef, (snapshot) => {
+    statusDot.classList.add('online');
+    statusTxt.textContent = 'Conectado';
+
+    const data = snapshot.val() || {};
+    const allTasks = Object.keys(data).map(id => ({ id, ...data[id] }));
+
+    // Agrupa por setor (tarefas sem setor definido caem no primeiro setor por segurança)
+    tasksBySector = {};
+    SECTORS.forEach(s => { tasksBySector[s.id] = []; });
+    allTasks.forEach(t => {
+      const key = tasksBySector[t.setor] ? t.setor : SECTORS[0].id;
+      tasksBySector[key].push(t);
+    });
+
+    SECTORS.forEach(sector => renderColumn(sector));
+
+  }, (error) => {
+    statusDot.classList.remove('online');
+    statusTxt.textContent = 'Sem conexão';
+    console.error(error);
+  });
+</script>
+</body>
+</html>
