@@ -408,7 +408,129 @@
 
     .task-item.done .priority-badge { opacity: .55; }
 
-    .anexo-badge {
+    .column-hidden { display: none !important; }
+
+    .maintenance-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-size: 21px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      transition: background var(--transition), border-color var(--transition), transform var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .maintenance-fab:active { transform: scale(.94); }
+    .maintenance-fab.active {
+      background: #D35400;
+      border-color: #D35400;
+    }
+
+    .comment-wrap {
+      margin-top: 2px;
+    }
+
+    .comment-add {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 11.5px;
+      color: var(--sub);
+      cursor: pointer;
+      padding: 2px 0;
+      opacity: .8;
+      transition: opacity var(--transition);
+    }
+    .comment-add:hover { opacity: 1; }
+
+    .comment-display {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin-top: 2px;
+    }
+
+    .comment-icon { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+
+    .comment-text {
+      flex: 1;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--sub);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .comment-edit {
+      background: none;
+      border: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 12px;
+      flex-shrink: 0;
+      padding: 0 2px;
+      transition: color var(--transition);
+    }
+    .comment-edit:hover { color: var(--text); }
+
+    .comment-editor {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .comment-input {
+      width: 100%;
+      resize: vertical;
+      min-height: 46px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 9px;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--text);
+      outline: none;
+    }
+    .comment-input:focus { border-color: var(--column-color, var(--accent)); }
+
+    .comment-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .comment-save,
+    .comment-cancel {
+      font-family: inherit;
+      font-size: 11.5px;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .comment-save {
+      background: var(--column-color, var(--accent));
+      color: #fff;
+    }
+    .comment-cancel {
+      background: transparent;
+      color: var(--sub);
+      border: 1px solid var(--border);
+    }
       font-family: 'DM Mono', monospace;
       font-size: 10px;
       color: var(--sub);
@@ -548,6 +670,8 @@
   <div class="loading">Carregando tarefas…</div>
 </div>
 
+<button class="maintenance-fab" id="maintenanceFab" title="Mostrar/ocultar Manutenção" aria-label="Mostrar ou ocultar coluna de Manutenção">🔧</button>
+
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -580,7 +704,8 @@
     { id: 'usinagem',    label: 'Centro de Usinagem / Furadeira', color: '#2D6A4F' },
     { id: 'dobra',       label: 'Dobra / Guilhotina',              color: '#1D6FA5' },
     { id: 'motorista',   label: 'Motorista',                       color: '#B8860B' },
-    { id: 'recebimento', label: 'Recebimento / Envios',            color: '#8E44AD' }
+    { id: 'recebimento', label: 'Recebimento / Envios',            color: '#8E44AD' },
+    { id: 'manutencao',  label: 'Manutenção',                      color: '#D35400', hidden: true }
   ];
 
   // ── Tema ─────────────────────────────────────────────────────────
@@ -595,6 +720,15 @@
     localStorage.setItem('theme_v1', next);
   });
 
+  // ── Botão flutuante: mostrar/ocultar coluna de Manutenção ────────
+  const maintenanceFab = document.getElementById('maintenanceFab');
+  maintenanceFab.addEventListener('click', () => {
+    const col = document.querySelector('.column[data-sector="manutencao"]');
+    if (!col) return;
+    const nowHidden = col.classList.toggle('column-hidden');
+    maintenanceFab.classList.toggle('active', !nowHidden);
+  });
+
   // ── Monta o board com as 4 colunas ───────────────────────────────
   const board = document.getElementById('board');
   const statusDot = document.getElementById('statusDot');
@@ -604,7 +738,7 @@
 
   SECTORS.forEach(sector => {
     const col = document.createElement('div');
-    col.className = 'column';
+    col.className = 'column' + (sector.hidden ? ' column-hidden' : '');
     col.style.setProperty('--column-color', sector.color);
     col.dataset.sector = sector.id;
 
@@ -747,6 +881,199 @@
 
   // ── Listener em tempo real (dados de todos os setores) ───────────
   let tasksBySector = {};
+  const openCommentEditors = new Set();
+  const commentDrafts = {};
+
+  function renderColumn(sector) {
+    const col = board.querySelector(`.column[data-sector="${sector.id}"]`);
+    if (!col) return;
+
+    const tasks = (tasksBySector[sector.id] || [])
+      .sort((a, b) => {
+        const pa = a.priority || 2;
+        const pb = b.priority || 2;
+        if (pa !== pb) return pa - pb;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+
+    const listEl   = col.querySelector('.task-list');
+    const statsEl  = col.querySelector('.stats-count');
+    const clearBtn = col.querySelector('.clear-done');
+
+    const total  = tasks.length;
+    const done   = tasks.filter(t => t.done).length;
+    const active = total - done;
+
+    statsEl.textContent = total
+      ? active + ' pendente' + (active !== 1 ? 's' : '') + ' · ' + done + ' concluída' + (done !== 1 ? 's' : '')
+      : 'Nenhuma tarefa';
+
+    clearBtn.disabled = done === 0;
+
+    if (!total) {
+      listEl.innerHTML =
+        '<div class="empty">' +
+          '<div class="empty-icon">✦</div>' +
+          '<p>Nenhuma tarefa ainda.</p>' +
+        '</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+
+    tasks.forEach(task => {
+      const item = document.createElement('div');
+      item.className = 'task-item' + (task.done ? ' done' : '');
+
+      const check = document.createElement('button');
+      check.className = 'check-btn';
+      check.setAttribute('aria-label', task.done ? 'Desmarcar' : 'Concluir');
+      check.innerHTML = task.done ? '✓' : '';
+      check.addEventListener('click', () => {
+        update(ref(db, 'tarefas/' + task.id), { done: !task.done });
+      });
+
+      const body = document.createElement('div');
+      body.className = 'task-body';
+
+      const label = document.createElement('span');
+      label.className = 'task-text';
+      label.textContent = task.text;
+      body.appendChild(label);
+
+      const priority = task.priority || 2;
+      const meta = document.createElement('div');
+      meta.className = 'task-meta';
+
+      const badge = document.createElement('span');
+      badge.className = 'priority-badge p' + priority;
+      badge.textContent = 'P' + priority;
+      meta.appendChild(badge);
+
+      if (task.anexoData) {
+        const anexo = document.createElement('a');
+        anexo.className = 'anexo-badge';
+        anexo.href = task.anexoData;
+        anexo.download = task.anexoNome || 'anexo';
+        anexo.target = '_blank';
+        anexo.rel = 'noopener noreferrer';
+        anexo.title = task.anexoNome || 'Anexo';
+        anexo.innerHTML = (task.anexoTipo === 'pdf' ? '📄' : '🖼️') + ' Anexo';
+        meta.appendChild(anexo);
+      }
+
+      body.appendChild(meta);
+
+      // ── Comentário ──────────────────────────────────────────────
+      const commentWrap = document.createElement('div');
+      commentWrap.className = 'comment-wrap';
+      const isEditing = openCommentEditors.has(task.id);
+
+      if (isEditing) {
+        const editor = document.createElement('div');
+        editor.className = 'comment-editor';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'comment-input';
+        textarea.placeholder = 'Escreva um comentário…';
+        textarea.value = commentDrafts[task.id] !== undefined
+          ? commentDrafts[task.id]
+          : (task.comentario || '');
+        textarea.addEventListener('input', () => {
+          commentDrafts[task.id] = textarea.value;
+        });
+
+        const actions = document.createElement('div');
+        actions.className = 'comment-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'comment-save';
+        saveBtn.textContent = 'Salvar';
+        saveBtn.addEventListener('click', async () => {
+          const val = textarea.value.trim();
+          saveBtn.disabled = true;
+          try {
+            await update(ref(db, 'tarefas/' + task.id), { comentario: val || null });
+            openCommentEditors.delete(task.id);
+            delete commentDrafts[task.id];
+            renderColumn(sector);
+          } catch (err) {
+            console.error('Erro ao salvar comentário:', err);
+            alert('Erro ao salvar comentário: ' + err.message);
+            saveBtn.disabled = false;
+          }
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'comment-cancel';
+        cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', () => {
+          openCommentEditors.delete(task.id);
+          delete commentDrafts[task.id];
+          renderColumn(sector);
+        });
+
+        actions.appendChild(saveBtn);
+        actions.appendChild(cancelBtn);
+        editor.appendChild(textarea);
+        editor.appendChild(actions);
+        commentWrap.appendChild(editor);
+      } else if (task.comentario) {
+        const display = document.createElement('div');
+        display.className = 'comment-display';
+
+        const icon = document.createElement('span');
+        icon.className = 'comment-icon';
+        icon.textContent = '💬';
+
+        const text = document.createElement('span');
+        text.className = 'comment-text';
+        text.textContent = task.comentario;
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'comment-edit';
+        editBtn.title = 'Editar comentário';
+        editBtn.textContent = '✎';
+        editBtn.addEventListener('click', () => {
+          openCommentEditors.add(task.id);
+          renderColumn(sector);
+        });
+
+        display.appendChild(icon);
+        display.appendChild(text);
+        display.appendChild(editBtn);
+        commentWrap.appendChild(display);
+      } else {
+        const addBtn2 = document.createElement('button');
+        addBtn2.type = 'button';
+        addBtn2.className = 'comment-add';
+        addBtn2.textContent = '💬 Adicionar comentário';
+        addBtn2.addEventListener('click', () => {
+          openCommentEditors.add(task.id);
+          renderColumn(sector);
+        });
+        commentWrap.appendChild(addBtn2);
+      }
+
+      body.appendChild(commentWrap);
+
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.setAttribute('aria-label', 'Remover tarefa');
+      del.innerHTML = '×';
+      del.addEventListener('click', () => {
+        remove(ref(db, 'tarefas/' + task.id));
+      });
+
+      item.appendChild(check);
+      item.appendChild(body);
+      item.appendChild(del);
+      listEl.appendChild(item);
+    });
+  }
 
   onValue(tasksRef, (snapshot) => {
     statusDot.classList.add('online');
@@ -763,100 +1090,7 @@
       tasksBySector[key].push(t);
     });
 
-    SECTORS.forEach(sector => {
-      const col = board.querySelector(`.column[data-sector="${sector.id}"]`);
-      if (!col) return;
-
-      const tasks = (tasksBySector[sector.id] || [])
-        .sort((a, b) => {
-          const pa = a.priority || 2;
-          const pb = b.priority || 2;
-          if (pa !== pb) return pa - pb;
-          return (b.createdAt || 0) - (a.createdAt || 0);
-        });
-
-      const listEl   = col.querySelector('.task-list');
-      const statsEl  = col.querySelector('.stats-count');
-      const clearBtn = col.querySelector('.clear-done');
-
-      const total  = tasks.length;
-      const done   = tasks.filter(t => t.done).length;
-      const active = total - done;
-
-      statsEl.textContent = total
-        ? active + ' pendente' + (active !== 1 ? 's' : '') + ' · ' + done + ' concluída' + (done !== 1 ? 's' : '')
-        : 'Nenhuma tarefa';
-
-      clearBtn.disabled = done === 0;
-
-      if (!total) {
-        listEl.innerHTML =
-          '<div class="empty">' +
-            '<div class="empty-icon">✦</div>' +
-            '<p>Nenhuma tarefa ainda.</p>' +
-          '</div>';
-        return;
-      }
-
-      listEl.innerHTML = '';
-
-      tasks.forEach(task => {
-        const item = document.createElement('div');
-        item.className = 'task-item' + (task.done ? ' done' : '');
-
-        const check = document.createElement('button');
-        check.className = 'check-btn';
-        check.setAttribute('aria-label', task.done ? 'Desmarcar' : 'Concluir');
-        check.innerHTML = task.done ? '✓' : '';
-        check.addEventListener('click', () => {
-          update(ref(db, 'tarefas/' + task.id), { done: !task.done });
-        });
-
-        const body = document.createElement('div');
-        body.className = 'task-body';
-
-        const label = document.createElement('span');
-        label.className = 'task-text';
-        label.textContent = task.text;
-        body.appendChild(label);
-
-        const priority = task.priority || 2;
-        const meta = document.createElement('div');
-        meta.className = 'task-meta';
-
-        const badge = document.createElement('span');
-        badge.className = 'priority-badge p' + priority;
-        badge.textContent = 'P' + priority;
-        meta.appendChild(badge);
-
-        if (task.anexoData) {
-          const anexo = document.createElement('a');
-          anexo.className = 'anexo-badge';
-          anexo.href = task.anexoData;
-          anexo.download = task.anexoNome || 'anexo';
-          anexo.target = '_blank';
-          anexo.rel = 'noopener noreferrer';
-          anexo.title = task.anexoNome || 'Anexo';
-          anexo.innerHTML = (task.anexoTipo === 'pdf' ? '📄' : '🖼️') + ' Anexo';
-          meta.appendChild(anexo);
-        }
-
-        body.appendChild(meta);
-
-        const del = document.createElement('button');
-        del.className = 'del-btn';
-        del.setAttribute('aria-label', 'Remover tarefa');
-        del.innerHTML = '×';
-        del.addEventListener('click', () => {
-          remove(ref(db, 'tarefas/' + task.id));
-        });
-
-        item.appendChild(check);
-        item.appendChild(body);
-        item.appendChild(del);
-        listEl.appendChild(item);
-      });
-    });
+    SECTORS.forEach(sector => renderColumn(sector));
 
   }, (error) => {
     statusDot.classList.remove('online');
