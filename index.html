@@ -435,6 +435,14 @@
       border-color: #D35400;
     }
 
+    .fab-secondary {
+      bottom: 88px;
+    }
+    .fab-secondary.active {
+      background: #2C3E50;
+      border-color: #2C3E50;
+    }
+
     .comment-wrap {
       margin-top: 2px;
     }
@@ -671,6 +679,7 @@
 </div>
 
 <button class="maintenance-fab" id="maintenanceFab" title="Mostrar/ocultar Manutenção" aria-label="Mostrar ou ocultar coluna de Manutenção">🔧</button>
+<button class="maintenance-fab fab-secondary" id="productionOrderFab" title="Mostrar/ocultar Ordem de Produção" aria-label="Mostrar ou ocultar coluna de Ordem de Produção">📋</button>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -701,11 +710,12 @@
 
   // ── Setores (colunas) ────────────────────────────────────────────
   const SECTORS = [
-    { id: 'usinagem',    label: 'Centro de Usinagem / Furadeira', color: '#2D6A4F' },
-    { id: 'dobra',       label: 'Dobra / Guilhotina',              color: '#1D6FA5' },
-    { id: 'motorista',   label: 'Motorista',                       color: '#B8860B' },
-    { id: 'recebimento', label: 'Recebimento / Envios',            color: '#8E44AD' },
-    { id: 'manutencao',  label: 'Manutenção',                      color: '#D35400', hidden: true }
+    { id: 'usinagem',      label: 'Centro de Usinagem / Furadeira', color: '#2D6A4F' },
+    { id: 'dobra',         label: 'Dobra / Guilhotina',              color: '#1D6FA5' },
+    { id: 'motorista',     label: 'Motorista',                       color: '#B8860B' },
+    { id: 'recebimento',   label: 'Recebimento / Envios',            color: '#8E44AD' },
+    { id: 'manutencao',    label: 'Manutenção',                      color: '#D35400', hidden: true },
+    { id: 'ordemproducao', label: 'Ordem de Produção',               color: '#2C3E50', hidden: true }
   ];
 
   // ── Tema ─────────────────────────────────────────────────────────
@@ -727,6 +737,15 @@
     if (!col) return;
     const nowHidden = col.classList.toggle('column-hidden');
     maintenanceFab.classList.toggle('active', !nowHidden);
+  });
+
+  // ── Botão flutuante: mostrar/ocultar coluna de Ordem de Produção ─
+  const productionOrderFab = document.getElementById('productionOrderFab');
+  productionOrderFab.addEventListener('click', () => {
+    const col = document.querySelector('.column[data-sector="ordemproducao"]');
+    if (!col) return;
+    const nowHidden = col.classList.toggle('column-hidden');
+    productionOrderFab.classList.toggle('active', !nowHidden);
   });
 
   // ── Monta o board com as 4 colunas ───────────────────────────────
